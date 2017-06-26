@@ -1,12 +1,19 @@
+# TODO: use get_exts_from_config for handling extensions not the direct values from the config
 import re
 import configparser
 import argparse
 import os
 import requests
+import textwrap
+from collections import namedtuple
 
+term_width = os.get_terminal_size().columns
+
+ExtRef = namedtuple('ExtensionReference', ['name', 'idstr'])
 
 class ExtensionOnline(object):
-
+    """Holds relevant information about an extension including a requests
+    object pointing to its online location."""
     def __init__(self, ext_id):
         self.ext_id = ext_id
         self.requests_url = 'https://clients2.google.com/service/update2/crx?'\
@@ -36,6 +43,13 @@ def is_root():
     """Check if user is root."""
     if os.geteuid() == 0:
         return True
+
+
+def mline_print(msg):
+    """Print dedented version of multiline text"""
+    msg.replace('\n', '')
+    msg = re.sub('\s{2,}', ' ', msg)
+    print(textwrap.fill(msg, width=term_width))
 
 
 def get_existing_jsons():
@@ -75,12 +89,22 @@ def update_config_ext(ext_list):
     config['extensions'] = ext
 
 
+def get_local_version(ext_id):
+    files = os.listdir(os.path.abspath(os.path.join(EXT_DIR, ext_id)))
+    for filename in files:
+        if filename[-3:] == 'crx':
+            version = re.findall(r'(\d[\d_]+)', filename)[0]
+            version = version.replace('_', '.')
+            return version
+    return None
+
+
 def create_json(json_file, filepath, version):
     """Create a json file in JSON_DIR that refers to ext_id and filepath."""
     with open(json_file, 'w+') as json_f:
         json_f.write('{\n')
         json_f.write('  "external_crw": "' + filepath + '",\n')
-        json_f.write('  "external_version": "' + version + '",\n')
+        json_f.write('  "external_version": "' + version + '"\n')
         json_f.write('}')
 
 
@@ -91,6 +115,17 @@ def download_ext(ext_path, ext_path_file, ext_content):
 
     with open(ext_path_file, 'wb') as ext_f:
         ext_f.write(ext_content)
+
+
+def get_exts_from_config():
+    """Create a list of named tuples for all extensions in config."""
+    ext_list = []
+    for key, value in config['extensions'].items():
+        if value == None:
+            ext_list.append(ExtRef(name=None, idstr=key))
+        else:
+            ext_list.append(ExtRef(name=key, idstr=value))
+    return ext_list
 
 
 def create_directories():
@@ -122,14 +157,13 @@ def install_extension(ext_obj):
 def install_mode():
     """Install all extensions listed in config."""
     if not is_root():
-        print("""You're not running this script as root. If you don't have
-                write access to the paths you have set in your config file,
-                this script will fail.""")
+        mline_print("""You're not running this script as root. If you don't have
+                       write access to the paths you have set in your config file,
+                       this operation will fail.""")
 
     create_directories()
 
-    ext_list = config.options('extensions')
-    for ext_id in ext_list:
+    for ext_id in config.options('extensions'):
         ext_obj = ExtensionOnline(ext_id)
 
         if not is_installed(ext_id):
@@ -142,14 +176,32 @@ def install_mode():
             print('Extension "{}" is already installed.'.format(ext_id))
 
 
+def update_mode():
+    """Update all extensions that are in config and are also present in the
+    extension directory."""
+    dir_list = get_existing_folders()
+    for ext_id in config.options('extensions'):
+        if ext_id in dir_list:
+            ext_obj = ExtensionOnline(ext_id)
+            try:
+                local_ver = get_local_version(ext_id)
+                if ext_obj.version != local_ver:
+                    install_extension(ext_obj)
+                    print('Extension {} updated.'.format(ext_id))
+                else:
+                    print('Extensions {} up-to-date.'.format(ext_id))
+            except FileNotFoundError:
+                install_extension(ext_obj)
+                print('Extension {} updated.'.format(ext_id))
+        else:
+            print('Extension {} in config but not installed. Skipping...')
+
+
 CONFIG_FILE = 'maninex.deb.conf'
 config = configparser.ConfigParser(allow_no_value=True)
 config.read(CONFIG_FILE)
 JSON_DIR = config['directories']['json_dir']
 EXT_DIR = config['directories']['extension_dir']
-
-argparser = argparse.ArgumentParser()
-argparser.parse_args()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-u', '--update', action='store_true',
@@ -160,11 +212,17 @@ parser.add_argument('-s', '--scan', action='store_true',
 parser.add_argument('-i', '--install', action='store_true',
                     help="install all extensions in the config file that aren't \
                             already installed.")
-ARGS = parser.parse_args()
-args_count = list(vars(ARGS).values()).count(True)
+args = parser.parse_args()
+args_count = list(vars(args).values()).count(True)
 # display help message if no arguments are supplied
 if args_count == 0:
     parser.print_help()
 # display error message if more than one argument is supplied
 elif args_count > 1:
-    print('only one argument at a time is accepted.')
+    print('Only one argument at a time is supported.')
+elif args.install:
+    install_mode()
+elif args.scan:
+    print('scan mode')
+elif args.update:
+    update_mode()
