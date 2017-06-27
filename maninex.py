@@ -1,4 +1,3 @@
-# TODO: use get_exts_from_config for handling extensions not the direct values from the config
 import re
 import configparser
 import argparse
@@ -17,9 +16,10 @@ class ExtensionOnline(object):
     object pointing to its online location."""
     def __init__(self, ext_id):
         self.ext_id = ext_id
-        self.requests_url = 'https://clients2.google.com/service/update2/crx?'\
-            'response=redirect&prodversion=48.0&x=id%3D{}%26installsource%3Do'\
-            'ndemand%26uc'.format(ext_id)
+        self.requests_url = (
+                'https://clients2.google.com/service/update2/crx?response=redi'
+                'rect&prodversion=48.0&x=id%3D{}%26installsource%3Dondemand%26'
+                'uc'.format(ext_id))
         self.requests_object = requests.get(self.requests_url)
         self.url = self.requests_object.url
         self.exists = self.check_exists()
@@ -69,7 +69,7 @@ def get_existing_jsons():
 def get_existing_folders():
     """Return a list of all plugin folders that are already present in
     EXT_DIR."""
-    folder_list = []
+    folder_list = list()
     try:
         for entry in os.scandir(path=EXT_DIR):
             if entry.is_dir() is True and \
@@ -120,15 +120,13 @@ def download_ext(ext_path, ext_path_file, ext_content):
 
 def get_exts_from_config():
     """Create a list of named tuples for all extensions in config."""
-    ext_list = []
     for key, value in config['extensions'].items():
-        if value == None:
+        if value is None:
             # if no name has been specified for the extension just use a
             # shortened version of the id
-            ext_list.append(ExtRef(name=key[0:11], idstr=key))
+            yield ExtRef(name=key[0:11], idstr=key)
         else:
-            ext_list.append(ExtRef(name=key, idstr=value))
-    return ext_list
+            yield ExtRef(name=key, idstr=value)
 
 
 def create_directories():
@@ -147,11 +145,9 @@ def is_installed(ext_id):
 
 
 def install_extension(ext_obj):
-    # if ext_obj.ext_id not in get_existing_folders():
     download_ext(ext_obj.ext_path,
                  ext_obj.ext_path_file,
                  ext_obj.requests_object.content)
-    # if ext_obj.ext_id not in get_existing_jsons():
     create_json(ext_obj.json_path_file,
                 ext_obj.ext_path_file,
                 ext_obj.version)
@@ -171,9 +167,9 @@ def update_extension(ext_obj):
 def install_mode():
     """Install all extensions listed in config."""
     if not is_root():
-        mline_print("""You're not running this script as root. If you don't have
-                       write access to the paths you have set in your config file,
-                       this operation will fail.""")
+        mline_print("""You're not running this script as root. If you don't
+                have write access to the paths you have set in your config
+                file, this operation will fail.""")
 
     create_directories()
 
@@ -188,6 +184,29 @@ def install_mode():
                 print('Extension "{}" installed.'.format(ext_ref.name))
         else:
             print('Extension "{}" is already installed.'.format(ext_ref.name))
+
+
+def list_mode():
+    installed_jsons = get_existing_jsons()
+    installed_folders = get_existing_folders()
+    for ext_ref in get_exts_from_config():
+        if (ext_ref.idstr in installed_jsons and
+                ext_ref.idstr in installed_folders):
+            print('{}: Installed.'.format(ext_ref.name))
+        else:
+            print('{}: Not installed.'.format(ext_ref.name))
+
+
+def scan_mode():
+    jsons = get_existing_jsons()
+    exts = list(get_exts_from_config())
+    exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
+    for ext_id in jsons:
+        if ext_id not in exts_ids:
+            config['extensions'].update({ext_id: None})
+            print('Extension {} added.'.format(ext_id[0:11] + '…'))
+    with open(config_file_path, 'w') as config_file:
+        config.write(config_file)
 
 
 def update_mode():
@@ -211,43 +230,43 @@ def update_mode():
             print('Extension {} in config but not installed. Skipping...')
 
 
-def scan_mode():
-    jsons = get_existing_jsons()
-    exts = get_exts_from_config()
-    exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
-    for ext_id in jsons:
-        if ext_id not in exts_ids:
-            config['extensions'].update({ext_id: None})
-    config.write()
-
-
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           'maninex.deb.conf')
+config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                'maninex.deb.conf')
 config = configparser.ConfigParser(allow_no_value=True)
-config.read(CONFIG_FILE)
+config.read(config_file_path)
 JSON_DIR = config['directories']['json_dir']
 EXT_DIR = config['directories']['extension_dir']
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--clean', action='store_true',
+                    help='clean up (i.e. remove) backed up extension files.')
+parser.add_argument('-i', '--install', action='store_true',
+                    help="""install all extensions in the config file that
+                    aren't already installed.""")
+parser.add_argument('-l', '--list', action='store_true',
+                    help='''list all extensions in the config file and their
+                    current status''')
+parser.add_argument('-s', '--scan', action='store_true',
+                    help='''scan the json directory and add all existing
+                    extensions to the config file.''')
 parser.add_argument('-u', '--update', action='store_true',
                     help='update all extensions in the config file')
-parser.add_argument('-s', '--scan', action='store_true',
-                    help='scan the json directory and add all existing \
-                            extensions to the config file.')
-parser.add_argument('-i', '--install', action='store_true',
-                    help="install all extensions in the config file that aren't \
-                            already installed.")
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
+
 # display help message if no arguments are supplied
 if args_count == 0:
     parser.print_help()
 # display error message if more than one argument is supplied
 elif args_count > 1:
     print('Only one argument at a time is supported.')
+elif args.clean:
+    pass
 elif args.install:
     install_mode()
+elif args.list:
+    list_mode()
 elif args.scan:
-    print('scan mode')
+    scan_mode()
 elif args.update:
     update_mode()
