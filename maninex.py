@@ -11,6 +11,7 @@ term_width = os.get_terminal_size().columns
 
 ExtRef = namedtuple('ExtensionReference', ['name', 'idstr'])
 
+
 class ExtensionOnline(object):
     """Holds relevant information about an extension including a requests
     object pointing to its online location."""
@@ -122,7 +123,9 @@ def get_exts_from_config():
     ext_list = []
     for key, value in config['extensions'].items():
         if value == None:
-            ext_list.append(ExtRef(name=None, idstr=key))
+            # if no name has been specified for the extension just use a
+            # shortened version of the id
+            ext_list.append(ExtRef(name=key[0:11], idstr=key))
         else:
             ext_list.append(ExtRef(name=key, idstr=value))
     return ext_list
@@ -144,14 +147,25 @@ def is_installed(ext_id):
 
 
 def install_extension(ext_obj):
-    if ext_obj.ext_id not in get_existing_folders():
-        download_ext(ext_obj.ext_path,
-                     ext_obj.ext_path_file,
-                     ext_obj.requests_object.content)
-    if ext_obj.ext_id not in get_existing_jsons():
-        create_json(ext_obj.json_path_file,
-                    ext_obj.ext_path_file,
-                    ext_obj.version)
+    # if ext_obj.ext_id not in get_existing_folders():
+    download_ext(ext_obj.ext_path,
+                 ext_obj.ext_path_file,
+                 ext_obj.requests_object.content)
+    # if ext_obj.ext_id not in get_existing_jsons():
+    create_json(ext_obj.json_path_file,
+                ext_obj.ext_path_file,
+                ext_obj.version)
+
+
+def update_extension(ext_obj):
+    """Update extension in ext_obj and rename old extension file."""
+    install_extension(ext_obj)
+    files = os.listdir(os.path.abspath(os.path.join(EXT_DIR, ext_obj.ext_id)))
+    for filename in files:
+        if filename != ext_obj.filename and \
+          filename[-3:] != 'old':
+            f = os.path.abspath(os.path.join(ext_obj.ext_path, filename))
+            os.rename(f, f + '.old')
 
 
 def install_mode():
@@ -163,41 +177,42 @@ def install_mode():
 
     create_directories()
 
-    for ext_id in config.options('extensions'):
-        ext_obj = ExtensionOnline(ext_id)
+    for ext_ref in get_exts_from_config():
+        ext_obj = ExtensionOnline(ext_ref.idstr)
 
-        if not is_installed(ext_id):
+        if not is_installed(ext_ref.idstr):
             if ext_obj.exists is False:
-                print('Extension "{}" not found.'.format(ext_id))
+                print('Extension "{}" not found.'.format(ext_ref.name))
             else:
                 install_extension(ext_obj)
-                print('Extension "{}" installed.'.format(ext_id))
+                print('Extension "{}" installed.'.format(ext_ref.name))
         else:
-            print('Extension "{}" is already installed.'.format(ext_id))
+            print('Extension "{}" is already installed.'.format(ext_ref.name))
 
 
 def update_mode():
     """Update all extensions that are in config and are also present in the
     extension directory."""
     dir_list = get_existing_folders()
-    for ext_id in config.options('extensions'):
-        if ext_id in dir_list:
-            ext_obj = ExtensionOnline(ext_id)
+    for ext_ref in get_exts_from_config():
+        if ext_ref.idstr in dir_list:
+            ext_obj = ExtensionOnline(ext_ref.idstr)
             try:
-                local_ver = get_local_version(ext_id)
+                local_ver = get_local_version(ext_ref.idstr)
                 if ext_obj.version != local_ver:
-                    install_extension(ext_obj)
-                    print('Extension {} updated.'.format(ext_id))
+                    update_extension(ext_obj)
+                    print('Extension {} updated.'.format(ext_ref.name))
                 else:
-                    print('Extensions {} up-to-date.'.format(ext_id))
+                    print('Extensions {} up-to-date.'.format(ext_ref.name))
             except FileNotFoundError:
-                install_extension(ext_obj)
-                print('Extension {} updated.'.format(ext_id))
+                update_extension(ext_obj)
+                print('Extension {} updated.'.format(ext_ref.name))
         else:
             print('Extension {} in config but not installed. Skipping...')
 
 
-CONFIG_FILE = 'maninex.deb.conf'
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'maninex.deb.conf')
 config = configparser.ConfigParser(allow_no_value=True)
 config.read(CONFIG_FILE)
 JSON_DIR = config['directories']['json_dir']
