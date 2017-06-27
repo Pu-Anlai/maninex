@@ -84,7 +84,7 @@ def get_existing_folders():
 
 def update_config_ext(ext_list):
     """Update the list of extensions in config with ext_list."""
-    ext = dict.fromkeys(config.options('extensions'), None)
+    ext = dict.fromkeys(config['extensions'], None)
     new_ext = dict.fromkeys(ext_list, None)
     ext.update(new_ext)
     config['extensions'] = ext
@@ -209,6 +209,16 @@ def update_mode():
                 print('Extension {} updated.'.format(ext_ref.name))
         else:
             print('Extension {} in config but not installed. Skipping...')
+
+
+def scan_mode():
+    jsons = get_existing_jsons()
+    exts = get_exts_from_config()
+    exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
+    for ext_id in jsons:
+        if ext_id not in exts_ids:
+            config['extensions'].update({ext_id: None})
+    config.write()
 
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
