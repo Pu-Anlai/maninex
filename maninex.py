@@ -1,10 +1,11 @@
 import re
-import configparser
-import argparse
 import os
 import requests
 import textwrap
 from collections import namedtuple
+from configparser import ConfigParser
+from argparse import ArgumentParser
+from shutil import rmtree
 
 term_width = os.get_terminal_size().columns
 
@@ -25,9 +26,9 @@ class ExtensionOnline(object):
         self.exists = self.check_exists()
         self.filename = self.url.rsplit('/', 1)[-1]
         self.version = self.get_version()
-        self.ext_path = os.path.abspath(os.path.join(EXT_DIR, self.ext_id))
+        self.ext_path = os.path.join(ext_dir, self.ext_id)
         self.ext_path_file = os.path.join(self.ext_path, self.filename)
-        self.json_path_file = os.path.abspath(os.path.join(JSON_DIR,
+        self.json_path_file = os.path.abspath(os.path.join(json_dir,
                                               self.ext_id + '.json'))
 
     def check_exists(self):
@@ -38,6 +39,11 @@ class ExtensionOnline(object):
         version = re.findall(r'(\d[\d_]+)', self.filename)[0]
         version = version.replace('_', '.')
         return version
+
+
+def get_real_path(path):
+    "Get absolute expanded path for path."
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def is_root():
@@ -57,24 +63,24 @@ def get_existing_jsons():
     """Get a list of all extensions that are already referenced by json
     files."""
     try:
-        json_list = os.listdir(JSON_DIR)
+        json_list = os.listdir(json_dir)
         for index, json in enumerate(json_list):
             json_list[index] = json.strip('.json')
     except FileNotFoundError:
-        json_list = None
+        json_list = []
 
     return json_list
 
 
 def get_existing_folders():
     """Return a list of all plugin folders that are already present in
-    EXT_DIR."""
-    folder_list = list()
+    ext_dir."""
+    folder_list = []
     try:
-        for entry in os.scandir(path=EXT_DIR):
-            if entry.is_dir() is True and \
-             len(entry.name) == 32 and \
-             os.listdir(entry.path):
+        for entry in os.scandir(path=ext_dir):
+            if (entry.is_dir() is True and
+                    len(entry.name) == 32 and
+                    os.listdir(entry.path)):
                 folder_list.append(entry.name)
     except FileNotFoundError:
         pass
@@ -91,7 +97,7 @@ def update_config_ext(ext_list):
 
 
 def get_local_version(ext_id):
-    files = os.listdir(os.path.abspath(os.path.join(EXT_DIR, ext_id)))
+    files = os.listdir(os.path.join(ext_dir, ext_id))
     for filename in files:
         if filename[-3:] == 'crx':
             version = re.findall(r'(\d[\d_]+)', filename)[0]
@@ -101,7 +107,7 @@ def get_local_version(ext_id):
 
 
 def create_json(json_file, filepath, version):
-    """Create a json file in JSON_DIR that refers to ext_id and filepath."""
+    """Create a json file in json_dir that refers to ext_id and filepath."""
     with open(json_file, 'w+') as json_f:
         json_f.write('{\n')
         json_f.write('  "external_crw": "' + filepath + '",\n')
@@ -110,7 +116,7 @@ def create_json(json_file, filepath, version):
 
 
 def download_ext(ext_path, ext_path_file, ext_content):
-    """Downloads an extension to EXT_DIR."""
+    """Downloads an extension to ext_dir."""
     if not os.path.exists(ext_path):
         os.mkdir(ext_path)
 
@@ -130,7 +136,7 @@ def get_exts_from_config():
 
 
 def create_directories():
-    for directory in [JSON_DIR, EXT_DIR]:
+    for directory in [json_dir, ext_dir]:
         try:
             os.mkdir(directory)
         except FileExistsError:
@@ -139,8 +145,7 @@ def create_directories():
 
 def is_installed(ext_id):
     """Check if extension with ext_id is installed."""
-    if ext_id in get_existing_jsons() and \
-       ext_id in get_existing_folders():
+    if ext_id in get_existing_jsons() and ext_id in get_existing_folders():
             return True
 
 
@@ -156,12 +161,26 @@ def install_extension(ext_obj):
 def update_extension(ext_obj):
     """Update extension in ext_obj and rename old extension file."""
     install_extension(ext_obj)
-    files = os.listdir(os.path.abspath(os.path.join(EXT_DIR, ext_obj.ext_id)))
+    files = os.listdir(os.path.join(ext_dir, ext_obj.ext_id))
     for filename in files:
-        if filename != ext_obj.filename and \
-          filename[-3:] != 'old':
-            f = os.path.abspath(os.path.join(ext_obj.ext_path, filename))
+        if (filename != ext_obj.filename and not filename.endswith('.old')):
+            f = os.path.join(ext_obj.ext_path, filename)
             os.rename(f, f + '.old')
+
+
+def clean_mode():
+    """Remove all *.old files."""
+    for ext_ref in get_exts_from_config():
+        path = os.path.join(ext_dir, ext_ref.idstr)
+        try:
+            for f in os.scandir(path):
+                if f.name.endswith('.old'):
+                    os.remove(os.path.abspath(f.path))
+                    print('File {} of Extension {} removed.'.format(
+                        f.name, ext_ref.name
+                        ))
+        except FileNotFoundError:
+            pass
 
 
 def install_mode():
@@ -198,6 +217,7 @@ def list_mode():
 
 
 def scan_mode():
+    """Scan for already installed files and add them to config_file."""
     jsons = get_existing_jsons()
     exts = list(get_exts_from_config())
     exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
@@ -205,13 +225,18 @@ def scan_mode():
         if ext_id not in exts_ids:
             config['extensions'].update({ext_id: None})
             print('Extension {} added.'.format(ext_id[0:11] + '…'))
-    with open(config_file_path, 'w') as config_file:
-        config.write(config_file)
+    with open(config_file, 'w') as c_file:
+        config.write(c_file)
 
 
 def update_mode():
     """Update all extensions that are in config and are also present in the
     extension directory."""
+    if not is_root():
+        mline_print("""You're not running this script as root. If you don't
+                have write access to the paths you have set in your config
+                file, this operation will fail.""")
+
     dir_list = get_existing_folders()
     for ext_ref in get_exts_from_config():
         if ext_ref.idstr in dir_list:
@@ -230,14 +255,18 @@ def update_mode():
             print('Extension {} in config but not installed. Skipping...')
 
 
-config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'maninex.deb.conf')
-config = configparser.ConfigParser(allow_no_value=True)
-config.read(config_file_path)
-JSON_DIR = config['directories']['json_dir']
-EXT_DIR = config['directories']['extension_dir']
+config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
+                           'maninex.deb.conf')
+config = ConfigParser(allow_no_value=True)
+# don't process option names in the config file, i.e. don't convert them to
+# lowercase
+config.optionxform = lambda option: option
+config.read(config_file)
 
-parser = argparse.ArgumentParser()
+json_dir = get_real_path(config['directories']['json_dir'])
+ext_dir = get_real_path(config['directories']['extension_dir'])
+
+parser = ArgumentParser()
 parser.add_argument('-c', '--clean', action='store_true',
                     help='clean up (i.e. remove) backed up extension files.')
 parser.add_argument('-i', '--install', action='store_true',
@@ -247,8 +276,8 @@ parser.add_argument('-l', '--list', action='store_true',
                     help='''list all extensions in the config file and their
                     current status''')
 parser.add_argument('-s', '--scan', action='store_true',
-                    help='''scan the json directory and add all existing
-                    extensions to the config file.''')
+                    help='''scan for installed extensions that are not in the
+                    config file and add them to the config file.''')
 parser.add_argument('-u', '--update', action='store_true',
                     help='update all extensions in the config file')
 args = parser.parse_args()
@@ -261,7 +290,7 @@ if args_count == 0:
 elif args_count > 1:
     print('Only one argument at a time is supported.')
 elif args.clean:
-    pass
+    clean_mode()
 elif args.install:
     install_mode()
 elif args.list:
