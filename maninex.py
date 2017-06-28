@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 import requests
 import textwrap
 from collections import namedtuple
@@ -41,22 +42,20 @@ class ExtensionOnline(object):
         return version
 
 
-def get_real_path(path):
-    "Get absolute expanded path for path."
-    return os.path.abspath(os.path.expanduser(path))
+def check_permissions(perm):
+    """Check if user has the permissions perm for the directories in the config
+    file. Exit if they don't."""
+    if not (os.access(ext_dir, perm) and os.access(json_dir, perm)):
+        mline_print("""You don't have the necessary file permissions for this
+                operation.""", file=sys.stderr)
+        sys.exit(1)
 
 
-def is_root():
-    """Check if user is root."""
-    if os.geteuid() == 0:
-        return True
-
-
-def mline_print(msg):
+def mline_print(msg, **kwargs):
     """Print dedented version of multiline text"""
     msg.replace('\n', '')
     msg = re.sub('\s{2,}', ' ', msg)
-    print(textwrap.fill(msg, width=term_width))
+    print(textwrap.fill(msg, width=term_width), **kwargs)
 
 
 def get_existing_jsons():
@@ -138,9 +137,15 @@ def get_exts_from_config():
 def create_directories():
     for directory in [json_dir, ext_dir]:
         try:
-            os.mkdir(directory)
-        except FileExistsError:
-            pass
+            os.makedirs(directory)
+        except (FileExistsError, PermissionError) as e:
+            if type(e).__name__ == 'PermissionError':
+                mline_print("""The directories in maninex.conf have not yet
+                        been created. However, you don't have the necessary
+                        file permissions to create them.""", file=sys.stderr)
+                sys.exit(1)
+            else:
+                pass
 
 
 def is_installed(ext_id):
@@ -170,6 +175,8 @@ def update_extension(ext_obj):
 
 def clean_mode():
     """Remove all *.old files."""
+    check_permissions(os.W_OK)
+
     for ext_ref in get_exts_from_config():
         path = os.path.join(ext_dir, ext_ref.idstr)
         try:
@@ -185,12 +192,7 @@ def clean_mode():
 
 def install_mode():
     """Install all extensions listed in config."""
-    if not is_root():
-        mline_print("""You're not running this script as root. If you don't
-                have write access to the paths you have set in your config
-                file, this operation will fail.""")
-
-    create_directories()
+    check_permissions(os.W_OK)
 
     for ext_ref in get_exts_from_config():
         ext_obj = ExtensionOnline(ext_ref.idstr)
@@ -206,8 +208,10 @@ def install_mode():
 
 
 def list_mode():
+    check_permissions(os.R_OK)
     installed_jsons = get_existing_jsons()
     installed_folders = get_existing_folders()
+
     for ext_ref in get_exts_from_config():
         if (ext_ref.idstr in installed_jsons and
                 ext_ref.idstr in installed_folders):
@@ -219,12 +223,14 @@ def list_mode():
 def remove_mode():
     """Remove json file and ext directory for files that are no longer in
     config_file."""
+    # check_permissions(os.W_OK)
     ext_ids = [ext_ref.idstr for ext_ref in get_exts_from_config()]
-    for json in get_existing_jsons():
-        if json not in ext_ids:
-            filename = json + '.json'
-            os.remove(os.path.join(json_dir, filename))
-            print('JSON file {} removed.'.format(filename))
+
+#     for json in get_existing_jsons():
+#         if json not in ext_ids:
+#             filename = json + '.json'
+#             os.remove(os.path.join(json_dir, filename))
+#             print('JSON file {} removed.'.format(filename))
 
     for folder in get_existing_folders():
         if folder not in ext_ids:
@@ -234,9 +240,11 @@ def remove_mode():
 
 def scan_mode():
     """Scan for already installed files and add them to config_file."""
+    check_permissions(os.R_OK)
     jsons = get_existing_jsons()
     exts = list(get_exts_from_config())
     exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
+
     for ext_id in jsons:
         if ext_id not in exts_ids:
             config['extensions'].update({ext_id: None})
@@ -248,10 +256,7 @@ def scan_mode():
 def update_mode():
     """Update all extensions that are in config and are also present in the
     extension directory."""
-    if not is_root():
-        mline_print("""You're not running this script as root. If you don't
-                have write access to the paths you have set in your config
-                file, this operation will fail.""")
+    check_permissions(os.W_OK)
 
     dir_list = get_existing_folders()
     for ext_ref in get_exts_from_config():
@@ -271,16 +276,16 @@ def update_mode():
             print('Extension {} in config but not installed. Skipping...')
 
 
-config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
-                           'maninex.deb.conf')
+config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'maninex.conf')
 config = ConfigParser(allow_no_value=True)
 # don't process option names in the config file, i.e. don't convert them to
 # lowercase
 config.optionxform = lambda option: option
 config.read(config_file)
 
-json_dir = get_real_path(config['directories']['json_dir'])
-ext_dir = get_real_path(config['directories']['extension_dir'])
+json_dir = os.path.abspath(config['directories']['json_dir'])
+ext_dir = os.path.abspath(config['directories']['extension_dir'])
 
 parser = ArgumentParser()
 parser.add_argument('-c', '--clean', action='store_true',
@@ -302,6 +307,8 @@ parser.add_argument('-u', '--update', action='store_true',
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
 
+# whatever the mode, first try to create the directories
+create_directories()
 
 # display help message if no arguments are supplied
 if args_count == 0:
