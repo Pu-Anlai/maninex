@@ -216,6 +216,22 @@ def list_mode():
             print('{}: Not installed.'.format(ext_ref.name))
 
 
+def remove_mode():
+    """Remove json file and ext directory for files that are no longer in
+    config_file."""
+    ext_ids = [ext_ref.idstr for ext_ref in get_exts_from_config()]
+    for json in get_existing_jsons():
+        if json not in ext_ids:
+            filename = json + '.json'
+            os.remove(os.path.join(json_dir, filename))
+            print('JSON file {} removed.'.format(filename))
+
+    for folder in get_existing_folders():
+        if folder not in ext_ids:
+            rmtree(os.path.join(ext_dir, folder))
+            print('Extension folder {} removed.'.format(folder))
+
+
 def scan_mode():
     """Scan for already installed files and add them to config_file."""
     jsons = get_existing_jsons()
@@ -275,6 +291,9 @@ parser.add_argument('-i', '--install', action='store_true',
 parser.add_argument('-l', '--list', action='store_true',
                     help='''list all extensions in the config file and their
                     current status''')
+parser.add_argument('-r', '--remove', action='store_true',
+                    help='''remove all installed extensions that are not in the
+                    config file''')
 parser.add_argument('-s', '--scan', action='store_true',
                     help='''scan for installed extensions that are not in the
                     config file and add them to the config file.''')
@@ -282,6 +301,7 @@ parser.add_argument('-u', '--update', action='store_true',
                     help='update all extensions in the config file')
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
+
 
 # display help message if no arguments are supplied
 if args_count == 0:
@@ -295,6 +315,8 @@ elif args.install:
     install_mode()
 elif args.list:
     list_mode()
+elif args.remove:
+    remove_mode()
 elif args.scan:
     scan_mode()
 elif args.update:
