@@ -193,7 +193,7 @@ def clean_mode():
             for f in os.scandir(path):
                 if f.name.endswith('.old'):
                     os.remove(os.path.abspath(f.path))
-                    print('File {} of Extension {} removed.'.format(
+                    print('File "{}" of Extension "{}" removed.'.format(
                         f.name, ext_ref.name
                         ))
         except FileNotFoundError:
@@ -270,14 +270,14 @@ def update_mode():
                 local_ver = get_local_version(ext_ref.idstr)
                 if ext_obj.version != local_ver:
                     update_extension(ext_obj)
-                    print('Extension {} updated.'.format(ext_ref.name))
+                    print('Extension "{}" updated.'.format(ext_ref.name))
                 else:
-                    print('Extensions {} up-to-date.'.format(ext_ref.name))
+                    print('Extension "{}" up-to-date.'.format(ext_ref.name))
             except FileNotFoundError:
                 update_extension(ext_obj)
-                print('Extension {} updated.'.format(ext_ref.name))
+                print('Extension "{}" updated.'.format(ext_ref.name))
         else:
-            print('Extension {} in config but not installed. Skipping...')
+            print('Extension "{}" in config but not installed. Skipping...')
 
 
 config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
