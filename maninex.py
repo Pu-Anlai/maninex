@@ -42,6 +42,15 @@ class ExtensionOnline(object):
         return version
 
 
+def get_real_path(path):
+    "Get absolute expanded path for path."
+    real_user = os.getenv('SUDO_USER') or os.getenv('USER')
+    if path.startswith('~'):
+        return os.path.abspath('/home/{}/{}'.format(real_user, path))
+    else:
+        return os.path.abspath(path)
+
+
 def check_permissions(perm):
     """Check if user has the permissions perm for the directories in the config
     file. Exit if they don't."""
@@ -109,7 +118,7 @@ def create_json(json_file, filepath, version):
     """Create a json file in json_dir that refers to ext_id and filepath."""
     with open(json_file, 'w+') as json_f:
         json_f.write('{\n')
-        json_f.write('  "external_crw": "' + filepath + '",\n')
+        json_f.write('  "external_crx": "' + filepath + '",\n')
         json_f.write('  "external_version": "' + version + '"\n')
         json_f.write('}')
 
@@ -276,7 +285,7 @@ def update_mode():
             print('Extension {} in config but not installed. Skipping...')
 
 
-config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
                            'maninex.conf')
 config = ConfigParser(allow_no_value=True)
 # don't process option names in the config file, i.e. don't convert them to
@@ -284,8 +293,8 @@ config = ConfigParser(allow_no_value=True)
 config.optionxform = lambda option: option
 config.read(config_file)
 
-json_dir = os.path.abspath(config['directories']['json_dir'])
-ext_dir = os.path.abspath(config['directories']['extension_dir'])
+json_dir = get_real_path(config['directories']['json_dir'])
+ext_dir = get_real_path(config['directories']['extension_dir'])
 
 parser = ArgumentParser()
 parser.add_argument('-c', '--clean', action='store_true',
