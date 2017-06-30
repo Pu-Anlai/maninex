@@ -293,23 +293,24 @@ config.read(config_file)
 json_dir = get_real_path(config['directories']['json_dir'])
 ext_dir = get_real_path(config['directories']['extension_dir'])
 
-parser = ArgumentParser()
+parser = ArgumentParser(usage='%(prog)s [option]',
+                        epilog='set up paths and extensions in maninex.conf')
+parser._optionals.title = 'options'
 parser.add_argument('-c', '--clean', action='store_true',
-                    help='clean up (i.e. remove) backed up extension files.')
+                    help='clean up (i.e. remove) backed up extension files')
 parser.add_argument('-i', '--install', action='store_true',
-                    help="""install all extensions in the config file that
-                    aren't already installed.""")
+                    help="""install all extensions that aren't already
+                    installed""")
 parser.add_argument('-l', '--list', action='store_true',
-                    help='''list all extensions in the config file and their
-                    current status''')
+                    help='''list all extensions and their current status''')
 parser.add_argument('-r', '--remove', action='store_true',
-                    help='''remove all installed extensions that are not in the
-                    config file''')
+                    help='''remove all extensions that are installed but not
+                    listed''')
 parser.add_argument('-s', '--scan', action='store_true',
-                    help='''scan for installed extensions that are not in the
-                    config file and add them to the config file.''')
+                    help='''scan for installed unlisted extensions and add them
+                    to the config file''')
 parser.add_argument('-u', '--update', action='store_true',
-                    help='update all extensions in the config file')
+                    help='update all extensions')
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
 
