@@ -311,23 +311,22 @@ parser.add_argument('-u', '--update', action='store_true',
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
 
-# whatever the mode, first try to create the directories
-
-# display help message if no arguments are supplied
-if args_count == 0:
-    parser.print_help()
-# display error message if more than one argument is supplied
-elif args_count > 1:
-    print('Only one argument at a time is supported.')
-elif args.clean:
-    clean_mode()
-elif args.install:
-    install_mode()
-elif args.list:
-    list_mode()
-elif args.remove:
-    remove_mode()
-elif args.scan:
-    scan_mode()
-elif args.update:
-    update_mode()
+if __name__ == '__main__':
+    # display help message if no arguments are supplied
+    if args_count == 0:
+        parser.print_help()
+    # display error message if more than one argument is supplied
+    elif args_count > 1:
+        print('Only one argument at a time is supported.')
+    elif args.clean:
+        clean_mode()
+    elif args.install:
+        install_mode()
+    elif args.list:
+        list_mode()
+    elif args.remove:
+        remove_mode()
+    elif args.scan:
+        scan_mode()
+    elif args.update:
+        update_mode()
