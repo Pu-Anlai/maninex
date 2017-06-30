@@ -207,9 +207,9 @@ def install_mode():
     check_folders(os.W_OK)
 
     for ext_ref in get_exts_from_config():
-        ext_obj = ExtensionOnline(ext_ref.idstr)
 
         if not is_installed(ext_ref.idstr):
+            ext_obj = ExtensionOnline(ext_ref.idstr)
             if ext_obj.exists is False:
                 print('Extension "{}" not found.'.format(ext_ref.name))
             else:
