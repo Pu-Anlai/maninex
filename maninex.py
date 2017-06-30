@@ -279,7 +279,8 @@ def update_mode():
                 update_extension(ext_obj)
                 print('Extension "{}" updated.'.format(ext_ref.name))
         else:
-            print('Extension "{}" in config but not installed. Skipping...')
+            print('Extension "{}" in config but not installed. '
+                  'Skipping...'.format(ext_ref.name))
 
 
 config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
