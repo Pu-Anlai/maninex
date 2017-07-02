@@ -85,7 +85,7 @@ def get_existing_jsons():
     try:
         json_list = os.listdir(json_dir)
         for index, json in enumerate(json_list):
-            json_list[index] = json.strip('.json')
+            json_list[index] = json[:-5]
     except FileNotFoundError:
         json_list = []
 
@@ -242,6 +242,12 @@ def remove_mode():
         if folder not in ext_ids:
             rmtree(os.path.join(ext_dir, folder))
             print('Extension folder {} removed.'.format(folder))
+
+    for json in get_existing_jsons():
+        if json not in ext_ids:
+            filename = json + '.json'
+            os.remove(os.path.join(json_dir, filename))
+            print('JSON file {} removed.'.format(filename))
 
 
 def scan_mode():
