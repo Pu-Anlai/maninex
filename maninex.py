@@ -9,6 +9,7 @@ from collections import namedtuple
 from configparser import ConfigParser
 from argparse import ArgumentParser
 from shutil import rmtree
+from threading import Thread
 
 term_width = os.get_terminal_size().columns
 
@@ -175,6 +176,18 @@ def install_extension(ext_obj):
                 ext_obj.version)
 
 
+def process_extension_install(ext_ref):
+    if not is_installed(ext_ref.idstr):
+        ext_obj = ExtensionOnline(ext_ref.idstr)
+        if ext_obj.exists is False:
+            print('Extension "{}" not found.'.format(ext_ref.name))
+        else:
+            install_extension(ext_obj)
+            print('Extension "{}" installed.'.format(ext_ref.name))
+    else:
+        print('Extension "{}" is already installed.'.format(ext_ref.name))
+
+
 def update_extension(ext_obj):
     """Update extension in ext_obj and rename old extension file."""
     install_extension(ext_obj)
@@ -183,6 +196,26 @@ def update_extension(ext_obj):
         if (filename != ext_obj.filename and not filename.endswith('.old')):
             f = os.path.join(ext_obj.ext_path, filename)
             os.rename(f, f + '.old')
+
+
+def process_extension_update(ext_ref, dir_list):
+    """Look up and apply updates for a single extension. Afterwards, print the
+    result."""
+    if ext_ref.idstr in dir_list:
+        ext_obj = ExtensionOnline(ext_ref.idstr)
+        try:
+            local_ver = get_local_version(ext_ref.idstr)
+            if ext_obj.version != local_ver:
+                update_extension(ext_obj)
+                print('Extension "{}" updated.'.format(ext_ref.name))
+            else:
+                print('Extension "{}" up-to-date.'.format(ext_ref.name))
+        except FileNotFoundError:
+            update_extension(ext_obj)
+            print('Extension "{}" updated.'.format(ext_ref.name))
+    else:
+        print('Extension "{}" in config but not installed. '
+              'Skipping...'.format(ext_ref.name))
 
 
 def clean_mode():
@@ -206,17 +239,14 @@ def install_mode():
     """Install all extensions listed in config."""
     check_folders(os.W_OK)
 
+    threads = []
     for ext_ref in get_exts_from_config():
+        ext_thread = Thread(target=process_extension_install, args=(ext_ref, ))
+        ext_thread.start()
+        threads.append(ext_thread)
 
-        if not is_installed(ext_ref.idstr):
-            ext_obj = ExtensionOnline(ext_ref.idstr)
-            if ext_obj.exists is False:
-                print('Extension "{}" not found.'.format(ext_ref.name))
-            else:
-                install_extension(ext_obj)
-                print('Extension "{}" installed.'.format(ext_ref.name))
-        else:
-            print('Extension "{}" is already installed.'.format(ext_ref.name))
+    for ext_thread in threads:
+        ext_thread.join()
 
 
 def list_mode():
@@ -271,22 +301,15 @@ def update_mode():
     check_folders(os.W_OK)
 
     dir_list = get_existing_folders()
+    threads = []
     for ext_ref in get_exts_from_config():
-        if ext_ref.idstr in dir_list:
-            ext_obj = ExtensionOnline(ext_ref.idstr)
-            try:
-                local_ver = get_local_version(ext_ref.idstr)
-                if ext_obj.version != local_ver:
-                    update_extension(ext_obj)
-                    print('Extension "{}" updated.'.format(ext_ref.name))
-                else:
-                    print('Extension "{}" up-to-date.'.format(ext_ref.name))
-            except FileNotFoundError:
-                update_extension(ext_obj)
-                print('Extension "{}" updated.'.format(ext_ref.name))
-        else:
-            print('Extension "{}" in config but not installed. '
-                  'Skipping...'.format(ext_ref.name))
+        ext_thread = Thread(target=process_extension_update,
+                            args=(ext_ref, dir_list))
+        ext_thread.start()
+        threads.append(ext_thread)
+
+    for ext_thread in threads:
+        ext_thread.join()
 
 
 config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
