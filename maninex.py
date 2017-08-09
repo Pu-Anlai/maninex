@@ -325,8 +325,6 @@ def get_config_location():
                                    'maninex.conf')
     script_dir_file = os.path.join(os.path.dirname(get_real_path(__file__)),
                                    'maninex.conf')
-    print(xdg_config_file)
-    print(script_dir_file)
 
     if os.path.exists(xdg_config_file):
         return xdg_config_file
