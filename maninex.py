@@ -46,10 +46,14 @@ class ExtensionOnline(object):
 
 
 def get_real_path(path):
-    "Get absolute expanded path for path."
+    """Get absolute expanded path for path and make sure to use user folders
+    when running as root."""
     real_user = os.getenv('SUDO_USER') or os.getenv('USER')
     if path.startswith('~'):
         return os.path.abspath(path.replace('~', '/home/{}'.format(real_user)))
+    elif path.startswith('/root'):
+        return os.path.abspath(path.replace('/root',
+                               '/home/{}'.format(real_user)))
     else:
         return os.path.abspath(path)
 
@@ -312,8 +316,30 @@ def update_mode():
         ext_thread.join()
 
 
-config_file = os.path.join(os.path.dirname(get_real_path(__file__)),
-                           'maninex.conf')
+def get_config_location():
+    """Return the location of the config file. A file in $XDG_CONFIG_HOME takes
+    precedence over a file present in the script directory."""
+    xdg_config_home = (os.getenv('XDG_CONFIG_HOME') or
+                       os.path.join(os.getenv('HOME'), '.config'))
+    xdg_config_file = os.path.join(get_real_path(xdg_config_home),
+                                   'maninex.conf')
+    script_dir_file = os.path.join(os.path.dirname(get_real_path(__file__)),
+                                   'maninex.conf')
+    print(xdg_config_file)
+    print(script_dir_file)
+
+    if os.path.exists(xdg_config_file):
+        return xdg_config_file
+    elif os.path.exists(script_dir_file):
+        return script_dir_file
+    else:
+        mline_print("""maninex depends on a config file named maninex.conf.
+        This file can be located either in your $XDG_CONFIG_HOME directory or
+        in the location of maninex.py.""")
+        sys.exit(1)
+
+
+config_file = get_config_location()
 config = ConfigParser(allow_no_value=True)
 # don't process option names in the config file, i.e. don't convert them to
 # lowercase

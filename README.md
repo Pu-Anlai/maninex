@@ -1,7 +1,7 @@
 Well, "manager" might be stretching it a bit. The idea is not having to manually look up and install updates when using a Chromium-like browser that doesn't use the WebStore plugin to handle these things. This is done by employing [this](https://developer.chrome.com/extensions/external_extensions#preferences) method which uses JSON preference files to point to local extension packages.
 
 ## Usage
-You'll need Python3 and the requests module.
+You'll need Python3 and the requests module. You can put maninex.conf in $XDG\_CONFIG\_HOME or leave it in the script's directory.
 
 Put the id of all extensions you want to use under the [extensions] header in maninex.conf. If you've manually installed extensions before (using the JSON file method), you can add them to the config file by running `./maninex.py --scan`.
 `./maninex.py --install` will download and install all extensions that are listed in maninex.conf. Run `./maninex.py --update` every once in a while to look up and install updates.
