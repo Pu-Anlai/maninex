@@ -11,7 +11,11 @@ from argparse import ArgumentParser
 from shutil import rmtree
 from threading import Thread
 
-term_width = os.get_terminal_size().columns
+try:
+    term_width = os.get_terminal_size().columns
+except OSError:
+    # OSError occurs when not running from real terminal (e.g. when testing)
+    term_width = 80
 
 ExtRef = namedtuple('ExtensionReference', ['name', 'idstr'])
 
@@ -337,6 +341,28 @@ def get_config_location():
         sys.exit(1)
 
 
+def main():
+    """Main function to be run from CLI."""
+    # display help message if no arguments are supplied
+    if args_count == 0:
+        parser.print_help()
+    # display error message if more than one argument is supplied
+    elif args_count > 1:
+        print('Only one argument at a time is supported.')
+    elif args.clean:
+        clean_mode()
+    elif args.install:
+        install_mode()
+    elif args.list:
+        list_mode()
+    elif args.remove:
+        remove_mode()
+    elif args.scan:
+        scan_mode()
+    elif args.update:
+        update_mode()
+
+
 config_file = get_config_location()
 config = ConfigParser(allow_no_value=True)
 # don't process option names in the config file, i.e. don't convert them to
@@ -367,23 +393,3 @@ parser.add_argument('-u', '--update', action='store_true',
                     help='update all extensions')
 args = parser.parse_args()
 args_count = list(vars(args).values()).count(True)
-
-if __name__ == '__main__':
-    # display help message if no arguments are supplied
-    if args_count == 0:
-        parser.print_help()
-    # display error message if more than one argument is supplied
-    elif args_count > 1:
-        print('Only one argument at a time is supported.')
-    elif args.clean:
-        clean_mode()
-    elif args.install:
-        install_mode()
-    elif args.list:
-        list_mode()
-    elif args.remove:
-        remove_mode()
-    elif args.scan:
-        scan_mode()
-    elif args.update:
-        update_mode()

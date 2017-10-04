@@ -1,0 +1,1 @@
+from .maninex import main
