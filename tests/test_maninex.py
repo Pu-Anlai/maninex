@@ -1,6 +1,12 @@
-import os, shutil
+import os, sys, shutil
 import tempfile
 import pytest
+
+# PYTHONPATH fix
+parent_path = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
+print(parent_path)
+sys.path.append(parent_path)
+
 from maninex import maninex
 
 # VERY lazy testing
