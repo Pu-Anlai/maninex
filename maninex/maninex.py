@@ -11,6 +11,24 @@ from argparse import ArgumentParser
 from shutil import rmtree
 from threading import Thread
 
+
+EXAMPLE_CONFIG = '''[directories]
+# This is where the .json files pointing to the extension files are stored.
+# On Linux, this should usually be '/usr/share/[browser_name]/extensions'
+json_dir = /usr/share/inox/extensions
+# This is where extension files are stored.
+# You can change this to whatever you like, but it should be a location you (as
+# a user) have write access to.
+extension_dir = ~/.config/inox/extensions
+
+[extensions]
+# Extensions are referenced by one extension id per line. Like this:
+# pkehgijcmpdhfbdbbnkijodmdjhbjlgp
+
+# You can also provide an arbitrary (or not so arbitrary) name for each
+# extension before the actual id. Like this:
+# uBlock Origin =  cjpalhdlnbpafiamejdnhcphjbkeiagm'''
+
 try:
     term_width = os.get_terminal_size().columns
 except OSError:
@@ -269,6 +287,11 @@ def list_mode():
             print('{}: Not installed.'.format(ext_ref.name))
 
 
+def print_skel_mode():
+    """Print an example skeleton config file."""
+    print(EXAMPLE_CONFIG)
+
+
 def remove_mode():
     """Remove json file and ext directory for files that are no longer in
     config_file."""
@@ -292,7 +315,7 @@ def scan_mode():
     check_folders(os.R_OK)
     jsons = get_existing_jsons()
     exts = list(get_exts_from_config())
-    exts_ids = [exts[ext].idstr for ext in range(0, len(exts))]
+    exts_ids = [exts[ext].idstr for ext in range(len(exts))]
 
     for ext_id in jsons:
         if ext_id not in exts_ids:
@@ -354,6 +377,8 @@ def main():
         install_mode()
     elif args.list:
         list_mode()
+    elif args.print_skel:
+        print_skel_mode()
     elif args.remove:
         remove_mode()
     elif args.scan:
@@ -382,12 +407,15 @@ parser.add_argument('-i', '--install', action='store_true',
                     installed""")
 parser.add_argument('-l', '--list', action='store_true',
                     help='''list all extensions and their current status''')
+parser.add_argument('-p', '--print-skel', action='store_true',
+                    help='''print the contents of a skeleton config file to
+                    stdout''')
 parser.add_argument('-r', '--remove', action='store_true',
                     help='''remove all extensions that are installed but not
-                    listed''')
+                    in the config file''')
 parser.add_argument('-s', '--scan', action='store_true',
-                    help='''scan for installed unlisted extensions and add them
-                    to the config file''')
+                    help='''scan for installed extensions not in the config
+                    file and add them to the config file''')
 parser.add_argument('-u', '--update', action='store_true',
                     help='update all extensions')
 args = parser.parse_args()
