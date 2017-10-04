@@ -7,8 +7,6 @@ parent_path = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
 print(parent_path)
 sys.path.append(parent_path)
 
-from maninex import maninex
-
 # VERY lazy testing
 
 CONF_CONTENT = '''
@@ -21,62 +19,59 @@ cjpalhdlnbpafiamejdnhcphjbkeiagm
 pkehgijcmpdhfbdbbnkijodmdjhbjlgp
 egnjhciaieeiiohknchakcodbpgjnchh
 '''
+TMP_HOME = tempfile.mkdtemp()
+# setup temporary home directory
+tmp_conf_dir = os.path.join(TMP_HOME, '.config')
+os.mkdir(tmp_conf_dir)
+tmp_conf_file = os.path.join(tmp_conf_dir, 'maninex.conf')
+tmp_json_dir = tempfile.mkdtemp(dir=TMP_HOME)
+with open(tmp_conf_file, 'w') as file_:
+    file_.write(CONF_CONTENT)
 
+# point maninex to temporary directory
+os.environ['HOME'] = TMP_HOME
+from maninex import maninex
 
-@pytest.fixture(scope='session')
-def tmp_struct():
-    # setup temporary home directory
-    tmp_home = tempfile.mkdtemp()
-    tmp_conf_file = os.path.join(tmp_home, 'maninex.conf')
-    tmp_json_dir = tempfile.mkdtemp(dir=tmp_home)
-    with open(tmp_conf_file, 'w') as file_:
-        file_.write(CONF_CONTENT)
-
-    # point maninex to temporary directory
-    os.environ['HOME'] = tmp_home
-    maninex.config_file = tmp_conf_file
-    maninex.json_dir = tmp_json_dir
-    yield
-    shutil.rmtree(tmp_home)
-
-
-def test_clean_mode(tmp_struct):
+def test_clean_mode():
     try:
         maninex.clean_mode()
     except SystemExit:
         pass
 
 
-def test_install_mode(tmp_struct):
+def test_install_mode():
     try:
         maninex.install_mode()
     except SystemExit:
         pass
 
 
-def test_list_mode(tmp_struct):
+def test_list_mode():
     try:
         maninex.list_mode()
     except SystemExit:
         pass
 
 
-def test_remove_mode(tmp_struct):
+def test_remove_mode():
     try:
         maninex.remove_mode()
     except SystemExit:
         pass
 
 
-def test_scan_mode(tmp_struct):
+def test_scan_mode():
     try:
         maninex.scan_mode()
     except SystemExit:
         pass
 
 
-def test_update_mode(tmp_struct):
+def test_update_mode():
     try:
         maninex.update_mode()
     except SystemExit:
         pass
+
+
+shutil.rmtree(TMP_HOME)
