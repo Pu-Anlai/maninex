@@ -93,8 +93,7 @@ def get_existing_jsons():
     files."""
     try:
         json_list = os.listdir(json_dir)
-        for index, json in enumerate(json_list):
-            json_list[index] = json[:-5]
+        json_list = [json[:-5] for json in json_list if json.endswith('.json')]
     except FileNotFoundError:
         json_list = []
 
@@ -107,7 +106,7 @@ def get_existing_folders():
     folder_list = []
     try:
         for entry in os.scandir(path=ext_dir):
-            if (entry.is_dir() is True and
+            if (entry.is_dir() and
                     len(entry.name) == 32 and
                     os.listdir(entry.path)):
                 folder_list.append(entry.name)
