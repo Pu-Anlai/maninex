@@ -14,9 +14,7 @@ Installation
     pip install maninex
 
 Python 3.3 or higher required. Older Python 3 versions may work as well,
-but Python 2 won't. Instead of using pip to take care of the
-installation you can also just clone this repository and use the
-included cli.py file.
+but Python 2 won't.
 
 Usage
 -----
