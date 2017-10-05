@@ -37,6 +37,9 @@ Run `maninex -i` to install all the extensions in the config file. Run `maninex 
 ### --clean
 This will remove old extension files that were backed up during previous updates.
 
+### --list
+List all extensions in the config file and whether or not they are installed already.
+
 ### --scan
 Scan the extension directory and add all extensions to the config file that aren't included already.
 
