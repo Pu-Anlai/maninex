@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(
       name='maninex',
-      version='0.1',
+      version='0.1.1',
       description="An extension manager to replace Google's WebStore",
-      long_description=open('README.md').read(),
+      long_description=open('README.rst').read(),
       url='https://github.com/InspectorMustache/maninex',
       packages=['maninex'],
       author='Pu Anlai',
@@ -18,7 +18,7 @@ setup(
                   ],
       keywords='chromium extension webstore inox iridium',
       install_requires=['requests'],
-      python_requires='>=3',
+      python_requires='>=3.3',
       entry_points={
                     'console_scripts': [
                                         'maninex = maninex:main'
