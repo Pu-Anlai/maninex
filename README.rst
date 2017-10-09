@@ -54,12 +54,12 @@ The final part of the extension page's URL is the id. For example,
 is the url of uBlock Origin and its id is therefore
 "cjpalhdlnbpafiamejdnhcphjbkeiagm". Every extension id should occupy one
 line under the [extension] header. Optionally you can prepend an
-identifier for the extension like this: uBlock Origin =
-cjpalhdlnbpafiamejdnhcphjbkeiagm
+identifier for the extension like this:
+``uBlock Origin = cjpalhdlnbpafiamejdnhcphjbkeiagm``
 
 This is recommended as it will make messages more descriptive, for
 example ``Extension "cjpalhdlnb…" installed.`` will become
-``Extension "My Extension" installed.``
+``Extension "uBlock Origin" installed.``
 
 Run ``maninex -i`` to install all the extensions in the config file. Run
 ``maninex -u`` to look up and download updates.
