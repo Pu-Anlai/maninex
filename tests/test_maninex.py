@@ -1,10 +1,10 @@
-import os, sys, shutil
+import os
+import sys
+import shutil
 import tempfile
-import pytest
 
 # PYTHONPATH fix
 parent_path = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
-print(parent_path)
 sys.path.append(parent_path)
 
 # VERY lazy testing
