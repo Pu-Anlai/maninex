@@ -36,12 +36,17 @@ except OSError:
     term_width = 80
 
 ExtRef = namedtuple('ExtensionReference', ['name', 'idstr'])
+Configs = namedtuple('ConfigObjects', ['ext_dir', 'json_dir',
+                                       'config', 'config_file'])
 
 
 class ExtensionOnline(object):
     """Holds relevant information about an extension including a requests
     object pointing to its online location."""
-    def __init__(self, ext_id):
+    def __init__(self, config_struct, ext_id):
+        ext_dir = config_struct.ext_dir
+        json_dir = config_struct.json_dir
+
         self.ext_id = ext_id
         self.requests_url = (
                 'https://clients2.google.com/service/update2/crx?response=redi'
@@ -80,9 +85,11 @@ def get_real_path(path):
         return os.path.abspath(path)
 
 
-def check_folders(perm):
+def check_folders(config_struct, perm):
     """Check if user has the permissions perm for the directories in the config
     file. Exit if they don't."""
+    ext_dir = config_struct.ext_dir
+    json_dir = config_struct.json_dir
     if not (os.path.exists(ext_dir) and os.path.exists(json_dir)):
         mline_print("""One or more paths provided in maninex.conf could not be
                 found.""", file=sys.stderr)
@@ -106,7 +113,7 @@ def mline_print(msg, **kwargs):
     print(textwrap.fill(msg, width=term_width), **kwargs)
 
 
-def get_existing_jsons():
+def get_existing_jsons(json_dir):
     """Get a list of all extensions that are already referenced by json
     files."""
     try:
@@ -118,7 +125,7 @@ def get_existing_jsons():
     return json_list
 
 
-def get_existing_folders():
+def get_existing_folders(ext_dir):
     """Return a list of all plugin folders that are already present in
     ext_dir."""
     folder_list = []
@@ -134,15 +141,7 @@ def get_existing_folders():
     return folder_list
 
 
-def update_config_ext(ext_list):
-    """Update the list of extensions in config with ext_list."""
-    ext = dict.fromkeys(config['extensions'], None)
-    new_ext = dict.fromkeys(ext_list, None)
-    ext.update(new_ext)
-    config['extensions'] = ext
-
-
-def get_local_version(ext_id):
+def get_local_version(ext_dir, ext_id):
     files = os.listdir(os.path.join(ext_dir, ext_id))
     for filename in files:
         if filename[-3:] == 'crx':
@@ -175,7 +174,7 @@ def download_ext(ext_path, ext_path_file, ext_content):
     adapt_owner(ext_path_file)
 
 
-def get_exts_from_config():
+def get_exts_from_config(config):
     """Create a list of named tuples for all extensions in config."""
     for key, value in config['extensions'].items():
         if value is None:
@@ -186,9 +185,10 @@ def get_exts_from_config():
             yield ExtRef(name=key, idstr=value)
 
 
-def is_installed(ext_id):
+def is_installed(config_struct, ext_id):
     """Check if extension with ext_id is installed."""
-    if ext_id in get_existing_jsons() and ext_id in get_existing_folders():
+    if (ext_id in get_existing_jsons(config_struct.json_dir) and
+            ext_id in get_existing_folders(config_struct.ext_dir)):
             return True
 
 
@@ -201,9 +201,9 @@ def install_extension(ext_obj):
                 ext_obj.version)
 
 
-def process_extension_install(ext_ref):
-    if not is_installed(ext_ref.idstr):
-        ext_obj = ExtensionOnline(ext_ref.idstr)
+def process_extension_install(config_struct, ext_ref):
+    if not is_installed(config_struct, ext_ref.idstr):
+        ext_obj = ExtensionOnline(config_struct, ext_ref.idstr)
         if ext_obj.exists is False:
             print('Extension "{}" not found.'.format(ext_ref.name))
         else:
@@ -216,20 +216,20 @@ def process_extension_install(ext_ref):
 def update_extension(ext_obj):
     """Update extension in ext_obj and rename old extension file."""
     install_extension(ext_obj)
-    files = os.listdir(os.path.join(ext_dir, ext_obj.ext_id))
+    files = os.listdir(os.path.join(ext_obj.ext_path))
     for filename in files:
         if (filename != ext_obj.filename and not filename.endswith('.old')):
             f = os.path.join(ext_obj.ext_path, filename)
             os.rename(f, f + '.old')
 
 
-def process_extension_update(ext_ref, dir_list):
+def process_extension_update(config_struct, ext_ref, dir_list):
     """Look up and apply updates for a single extension. Afterwards, print the
     result."""
     if ext_ref.idstr in dir_list:
-        ext_obj = ExtensionOnline(ext_ref.idstr)
+        ext_obj = ExtensionOnline(config_struct, ext_ref.idstr)
         try:
-            local_ver = get_local_version(ext_ref.idstr)
+            local_ver = get_local_version(config_struct.ext_dir, ext_ref.idstr)
             if ext_obj.version != local_ver:
                 update_extension(ext_obj)
                 print('Extension "{}" updated.'.format(ext_ref.name))
@@ -245,10 +245,11 @@ def process_extension_update(ext_ref, dir_list):
 
 def clean_mode():
     """Remove all *.old files."""
-    check_folders(os.W_OK)
+    config_struct = get_config()
+    check_folders(config_struct, os.W_OK)
 
-    for ext_ref in get_exts_from_config():
-        path = os.path.join(ext_dir, ext_ref.idstr)
+    for ext_ref in get_exts_from_config(config_struct.config):
+        path = os.path.join(config_struct.ext_dir, ext_ref.idstr)
         try:
             for f in os.scandir(path):
                 if f.name.endswith('.old'):
@@ -262,11 +263,13 @@ def clean_mode():
 
 def install_mode():
     """Install all extensions listed in config."""
-    check_folders(os.W_OK)
+    config_struct = get_config()
+    check_folders(config_struct, os.W_OK)
 
     threads = []
-    for ext_ref in get_exts_from_config():
-        ext_thread = Thread(target=process_extension_install, args=(ext_ref, ))
+    for ext_ref in get_exts_from_config(config_struct.config):
+        ext_thread = Thread(target=process_extension_install,
+                            args=(config_struct, ext_ref))
         ext_thread.start()
         threads.append(ext_thread)
 
@@ -275,11 +278,12 @@ def install_mode():
 
 
 def list_mode():
-    check_folders(os.R_OK)
-    installed_jsons = get_existing_jsons()
-    installed_folders = get_existing_folders()
+    config_struct = get_config()
+    check_folders(config_struct, os.R_OK)
+    installed_jsons = get_existing_jsons(config_struct.json_dir)
+    installed_folders = get_existing_folders(config_struct.ext_dir)
 
-    for ext_ref in get_exts_from_config():
+    for ext_ref in get_exts_from_config(config_struct.config):
         if (ext_ref.idstr in installed_jsons and
                 ext_ref.idstr in installed_folders):
             print('{}: Installed.'.format(ext_ref.name))
@@ -295,46 +299,50 @@ def print_skel_mode():
 def remove_mode():
     """Remove json file and ext directory for files that are no longer in
     config_file."""
-    check_folders(os.W_OK)
-    ext_ids = [ext_ref.idstr for ext_ref in get_exts_from_config()]
+    config_struct = get_config()
+    check_folders(config_struct, os.W_OK)
+    ext_ids = [ext_ref.idstr for ext_ref in
+               get_exts_from_config(config_struct.config)]
 
-    for folder in get_existing_folders():
+    for folder in get_existing_folders(config_struct.ext_dir):
         if folder not in ext_ids:
-            rmtree(os.path.join(ext_dir, folder))
+            rmtree(os.path.join(config_struct.ext_dir, folder))
             print('Extension folder {} removed.'.format(folder))
 
-    for json in get_existing_jsons():
+    for json in get_existing_jsons(config_struct.json_dir):
         if json not in ext_ids:
             filename = json + '.json'
-            os.remove(os.path.join(json_dir, filename))
+            os.remove(os.path.join(config_struct.json_dir, filename))
             print('JSON file {} removed.'.format(filename))
 
 
 def scan_mode():
     """Scan for already installed files and add them to config_file."""
-    check_folders(os.R_OK)
-    jsons = get_existing_jsons()
-    exts = list(get_exts_from_config())
+    config_struct = get_config()
+    check_folders(config_struct, os.R_OK)
+    jsons = get_existing_jsons(config_struct.json_dir)
+    exts = list(get_exts_from_config(config_struct.config))
     exts_ids = [exts[ext].idstr for ext in range(len(exts))]
 
     for ext_id in jsons:
         if ext_id not in exts_ids:
-            config['extensions'].update({ext_id: None})
+            config_struct.config['extensions'].update({ext_id: None})
             print('Extension {} added.'.format(ext_id[0:11] + '…'))
-    with open(config_file, 'w') as c_file:
-        config.write(c_file)
+    with open(config_struct.config_file, 'w') as c_file:
+        config_struct.config.write(c_file)
 
 
 def update_mode():
     """Update all extensions that are in config and are also present in the
     extension directory."""
-    check_folders(os.W_OK)
+    config_struct = get_config()
+    check_folders(config_struct, os.W_OK)
 
-    dir_list = get_existing_folders()
+    dir_list = get_existing_folders(config_struct.ext_dir)
     threads = []
-    for ext_ref in get_exts_from_config():
+    for ext_ref in get_exts_from_config(config_struct.config):
         ext_thread = Thread(target=process_extension_update,
-                            args=(ext_ref, dir_list))
+                            args=(config_struct, ext_ref, dir_list))
         ext_thread.start()
         threads.append(ext_thread)
 
@@ -363,6 +371,19 @@ def get_config_location():
         sys.exit(1)
 
 
+def get_config():
+    config_file = get_config_location()
+    config = ConfigParser(allow_no_value=True)
+    # don't process option names in the config file, i.e. don't convert them to
+    # lowercase
+    config.optionxform = lambda option: option
+    config.read(config_file)
+    json_dir = get_real_path(config['directories']['json_dir'])
+    ext_dir = get_real_path(config['directories']['extension_dir'])
+    return Configs(ext_dir=ext_dir, json_dir=json_dir,
+                   config_file=config_file, config=config)
+
+
 def main():
     """Main function to be run from CLI."""
     # display help message if no arguments are supplied
@@ -386,16 +407,6 @@ def main():
     elif args.update:
         update_mode()
 
-
-config_file = get_config_location()
-config = ConfigParser(allow_no_value=True)
-# don't process option names in the config file, i.e. don't convert them to
-# lowercase
-config.optionxform = lambda option: option
-config.read(config_file)
-
-json_dir = get_real_path(config['directories']['json_dir'])
-ext_dir = get_real_path(config['directories']['extension_dir'])
 
 parser = ArgumentParser(usage='%(prog)s [option]',
                         epilog='set up paths and extensions in maninex.conf')

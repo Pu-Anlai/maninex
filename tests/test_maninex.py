@@ -32,6 +32,7 @@ with open(tmp_conf_file, 'w') as file_:
 os.environ['HOME'] = TMP_HOME
 from maninex import maninex
 
+
 def test_clean_mode():
     try:
         maninex.clean_mode()
@@ -70,6 +71,13 @@ def test_scan_mode():
 def test_update_mode():
     try:
         maninex.update_mode()
+    except SystemExit:
+        pass
+
+
+def test_print_skel_mode():
+    try:
+        maninex.print_skel_mode()
     except SystemExit:
         pass
 

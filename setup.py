@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
       name='maninex',
-      version='0.1.1',
+      version='0.2',
       description="An extension manager to replace Google's WebStore",
       long_description=open('README.rst').read(),
       url='https://github.com/InspectorMustache/maninex',
