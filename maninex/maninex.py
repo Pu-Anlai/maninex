@@ -5,8 +5,8 @@ import os
 import sys
 import requests
 import textwrap
+import configparser
 from collections import namedtuple
-from configparser import ConfigParser
 from argparse import ArgumentParser
 from shutil import rmtree
 from threading import Thread
@@ -373,13 +373,20 @@ def get_config_location():
 
 def get_config():
     config_file = get_config_location()
-    config = ConfigParser(allow_no_value=True)
+    config = configparser.ConfigParser(allow_no_value=True)
     # don't process option names in the config file, i.e. don't convert them to
     # lowercase
     config.optionxform = lambda option: option
-    config.read(config_file)
-    json_dir = get_real_path(config['directories']['json_dir'])
-    ext_dir = get_real_path(config['directories']['extension_dir'])
+    try:
+        config.read(config_file)
+        json_dir = get_real_path(config['directories']['json_dir'])
+        ext_dir = get_real_path(config['directories']['extension_dir'])
+    except (KeyError, configparser.MissingSectionHeaderError):
+        mline_print("""maninex requires a [directories] section specifying
+        directories for json and extension files in maninex.conf. Try maninex
+        --print-skel for reference.""")
+        sys.exit(1)
+
     return Configs(ext_dir=ext_dir, json_dir=json_dir,
                    config_file=config_file, config=config)
 
