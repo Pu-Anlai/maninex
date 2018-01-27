@@ -1,13 +1,9 @@
 import os
-import sys
-import shutil
 import tempfile
-
-# PYTHONPATH fix
-parent_path = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(parent_path)
-
-# VERY lazy testing
+import shutil
+import configparser
+import pytest
+from maninex import maninex
 
 CONF_CONTENT = '''
 [directories]
@@ -19,18 +15,27 @@ cjpalhdlnbpafiamejdnhcphjbkeiagm
 pkehgijcmpdhfbdbbnkijodmdjhbjlgp
 egnjhciaieeiiohknchakcodbpgjnchh
 '''
-TMP_HOME = tempfile.mkdtemp()
-# setup temporary home directory
-tmp_conf_dir = os.path.join(TMP_HOME, '.config')
-os.mkdir(tmp_conf_dir)
-tmp_conf_file = os.path.join(tmp_conf_dir, 'maninex.conf')
-tmp_json_dir = tempfile.mkdtemp(dir=TMP_HOME)
-with open(tmp_conf_file, 'w') as file_:
-    file_.write(CONF_CONTENT)
 
-# point maninex to temporary directory
-os.environ['HOME'] = TMP_HOME
-from maninex import maninex
+
+@pytest.fixture(scope='module')
+def confix_struct():
+    test_json_dir = tempfile.mkdtemp(prefix='mt_json_')
+    test_ext_dir = tempfile.mkdtemp(prefix='mt_ext_')
+    _, test_config_file = tempfile.mkstemp(prefix='mt_conf_')
+
+    with open(test_config_file, 'w') as file_:
+        file_.write(CONF_CONTENT)
+
+    config = configparser.ConfigParser(allow_no_value=True)
+    config.optionxform = lambda option: option
+
+    yield maninex.Configs(json_dir=test_json_dir, ext_dir=test_ext_dir,
+                          config_file=test_config_file,
+                          config=config.read(test_config_file))
+
+    shutil.rmtree(test_json_dir)
+    shutil.rmtree(test_ext_dir)
+    os.remove(test_config_file)
 
 
 def test_clean_mode():
@@ -80,6 +85,3 @@ def test_print_skel_mode():
         maninex.print_skel_mode()
     except SystemExit:
         pass
-
-
-shutil.rmtree(TMP_HOME)
