@@ -1,9 +1,12 @@
-*.egg-info/
-__pycache__/
-dist/
-build/
-.cache/
-.tox/
+*
 
-maninex.deb.conf
-.tags
+!maninex
+!maninex/*
+!tests
+!tests/*
+
+!LICENSE
+!maninex.conf
+!PKGBUILD
+!README.rst
+!setup.py
