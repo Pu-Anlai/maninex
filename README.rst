@@ -9,6 +9,15 @@ packages.
 Installation
 ------------
 
+If you're on ArchLinux, you can install maninex via the Arch User Repository. Use your favorite AUR helper or simply git:
+
+::
+    
+    git clone https://aur.archlinux.org/maninex.git
+    cd maninex
+    makepkg -sri
+
+On other distros you can use pip to install maninex and handle dependencies (one: requests).
 ::
 
     pip install maninex
