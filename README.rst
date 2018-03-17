@@ -22,8 +22,7 @@ On other distros you can use pip to install maninex and handle dependencies (one
 
     pip install maninex
 
-Python 3.3 or higher required. Older Python 3 versions may work as well,
-but Python 2 won't.
+Maninex won't run on Python versions lower than 3.5.
 
 Usage
 -----
