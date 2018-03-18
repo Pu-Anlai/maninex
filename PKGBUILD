@@ -1,12 +1,12 @@
 # Maintainer: Nicolai.Pudimat <$maintainer@aol.de>
 pkgname=maninex
-pkgver=0.3
+pkgver=0.4
 pkgrel=1
 pkgdesc="Extension manager for Chromium-like browsers without the WebStore plugin"
 arch=('any')
 url="https://github.com/InspectorMustache/maninex"
 license=('MIT')
-depends=('python>=3.3.0'
+depends=('python>=3.5.0'
          'python-requests'
          'python-setuptools')
 options=(!emptydirs)
